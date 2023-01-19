@@ -4,6 +4,7 @@ plugins {
     id("com.android.library")
     kotlin("native.cocoapods")
     id("kotlinx-serialization")
+    id("com.squareup.sqldelight")
 }
 
 group = "com.programmersbox"
@@ -38,6 +39,7 @@ kotlin {
         useLibraries()
     }
     sourceSets {
+        val sqldelight = "1.5.4"
         val ktorVersion = "2.2.2"
         val commonMain by getting {
             dependencies {
@@ -51,6 +53,8 @@ kotlin {
                 api("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
                 api("io.ktor:ktor-client-logging:$ktorVersion")
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+                api("com.squareup.sqldelight:runtime:$sqldelight")
+                api("com.squareup.sqldelight:coroutines-extensions:$sqldelight")
             }
         }
 
@@ -66,6 +70,8 @@ kotlin {
                 api("androidx.core:core-ktx:1.9.0")
                 api("io.ktor:ktor-client-android:$ktorVersion")
                 api("org.jsoup:jsoup:1.15.3")
+                api("com.squareup.sqldelight:android-driver:$sqldelight")
+                api("androidx.work:work-runtime-ktx:2.7.1")
             }
         }
 
@@ -80,6 +86,7 @@ kotlin {
                 api(compose.preview)
                 api("io.ktor:ktor-client-cio:$ktorVersion")
                 api("org.jsoup:jsoup:1.15.3")
+                api("com.squareup.sqldelight:sqlite-driver:$sqldelight")
             }
         }
 
@@ -91,6 +98,7 @@ kotlin {
                 api("io.ktor:ktor-client-js:$ktorVersion")
                 api(npm("@aghajari/jssoup", "1.0.2", generateExternals = false))
                 //api(npm("@jolie/jsoup", "1.0.1"))
+                api("com.squareup.sqldelight:sqljs-driver:$sqldelight")
             }
         }
 
@@ -100,6 +108,7 @@ kotlin {
         val iosMain by getting {
             dependencies {
                 api("io.ktor:ktor-client-darwin:$ktorVersion")
+                api("com.squareup.sqldelight:native-driver:$sqldelight")
             }
             iosX64Main.dependsOn(this)
             iosArm64Main.dependsOn(this)
@@ -120,5 +129,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
+    }
+}
+
+sqldelight {
+    database("GDQReminderDatabase") {
+        packageName = "com.programmersbox.reminders"
     }
 }

@@ -1,76 +1,59 @@
 package com.programmersbox.common
 
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import kotlinx.coroutines.delay
-import androidx.compose.material3.BottomAppBar
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconToggleButton
-import androidx.compose.material3.ListItem
-import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.NavigationDrawerItem
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.SmallTopAppBar
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabPosition
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberDrawerState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.MenuOpen
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.*
 
 @OptIn(
     ExperimentalMaterial3Api::class, ExperimentalPagerApi::class,
 )
 @Composable
 internal fun GDQSchedule(
-    viewModel: GameViewModel,
-    onSaveToNotify: (GameInfo) -> Unit
+    viewModel: GameViewModel
 ) {
-
+    val actions = LocalAppActions.current
     val currentTime by currentTime()
     val scope = rememberCoroutineScope()
+    val savedReminders by viewModel.reminders.collectAsState(emptyList())
+
+    LaunchedEffect(Unit) {
+        flow<Instant> {
+            while (true) {
+                //delay(30 * 60 * 60 * 1000)
+                delay(60000)
+                emit(Clock.System.now())
+            }
+        }
+            .map { time -> savedReminders.filter { time.until(it.startTimeAsDate!!, DateTimeUnit.MINUTE) < 10 } }
+            .onEach { notifyList -> notifyList.forEach { actions.onSaveToNotify(it) } }
+            .launchIn(this)
+    }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     //val topBarBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarScrollState())
@@ -78,7 +61,24 @@ internal fun GDQSchedule(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet {
-
+                LazyColumn {
+                    items(savedReminders) { reminder ->
+                        OutlinedCard {
+                            ListItem(
+                                modifier = Modifier.fillMaxWidth(),
+                                headlineText = { Text(reminder.game!!) },
+                                supportingText = {
+                                    Column {
+                                        Text(reminder.info!!)
+                                        Text(reminder.runner!!)
+                                    }
+                                },
+                                overlineText = { Text(reminder.time!!) },
+                                leadingContent = { reminder.startTimeReadable?.let { it1 -> Text(it1) } },
+                            )
+                        }
+                    }
+                }
             }
         },
         gesturesEnabled = drawerState.isOpen
@@ -135,7 +135,7 @@ internal fun GDQSchedule(
 
                     ScrollableTabRow(
                         //containerColor = TopAppBarDefaults.smallTopAppBarColors()
-                            //.containerColor(scrollFraction = topBarBehavior.scrollFraction).value,
+                        //.containerColor(scrollFraction = topBarBehavior.scrollFraction).value,
                         selectedTabIndex = pagerState.currentPage,
                         indicator = { tabPositions ->
                             TabRowDefaults.Indicator(
@@ -178,51 +178,53 @@ internal fun GDQSchedule(
                                     val cardColor =
                                         if (isCurrentGame) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
 
-                                    ListItem(
-                                        modifier = Modifier
-                                            .border(
-                                                4.dp,
-                                                animateColorAsState(cardColor).value,
-                                                MaterialTheme.shapes.small
-                                            )
-                                            .fillMaxWidth(),
-                                        headlineText = { Text(it.game!!) },
-                                        supportingText = {
-                                            Column {
-                                                Text(it.info!!)
-                                                Text(it.runner!!)
-                                            }
-                                        },
-                                        overlineText = { Text(it.time!!) },
-                                        leadingContent = { it.startTimeReadable?.let { it1 -> Text(it1) } },
-                                        trailingContent = if (it.startTimeAsDate?.let { d < it } == true) {
-                                            {
-                                                var toggle by remember { mutableStateOf(false) }
-
-                                                IconToggleButton(
-                                                    checked = toggle,
-                                                    onCheckedChange = { b ->
-                                                        if (b) {
-
-                                                        } else {
-
-                                                        }
-                                                        toggle = b
-                                                    }
-                                                ) {
-                                                    Icon(
-                                                        Icons.Default.NotificationsActive,
-                                                        contentDescription = null,
-                                                        tint = animateColorAsState(
-                                                            if (toggle && isCurrentGame) Color(0xFFe74c3c)
-                                                            else LocalContentColor.current
-                                                        ).value
-                                                    )
+                                    ElevatedCard(
+                                        //onClick = { actions.onSaveToNotify(it) }
+                                    ) {
+                                        ListItem(
+                                            modifier = Modifier
+                                                .border(
+                                                    4.dp,
+                                                    animateColorAsState(cardColor).value,
+                                                    MaterialTheme.shapes.small
+                                                )
+                                                .fillMaxWidth(),
+                                            headlineText = { Text(it.game!!) },
+                                            supportingText = {
+                                                Column {
+                                                    Text(it.info!!)
+                                                    Text(it.runner!!)
                                                 }
-                                            }
-                                        } else null
-                                    )
-                                    Divider(modifier = Modifier.padding(top = 2.dp))
+                                            },
+                                            overlineText = { Text(it.time!!) },
+                                            leadingContent = { it.startTimeReadable?.let { it1 -> Text(it1) } },
+                                            trailingContent = if (it.startTimeAsDate?.let { d < it } == true || true) {
+                                                {
+                                                    val checked = savedReminders.any { r -> it.id == r.id }
+                                                    IconToggleButton(
+                                                        checked = checked,
+                                                        onCheckedChange = { b ->
+                                                            if (b) {
+                                                                viewModel.addReminder(it)
+                                                            } else {
+                                                                viewModel.deleteReminder(it)
+                                                            }
+                                                        }
+                                                    ) {
+                                                        Icon(
+                                                            Icons.Default.NotificationsActive,
+                                                            contentDescription = null,
+                                                            tint = animateColorAsState(
+                                                                if (checked && isCurrentGame) Color(0xFFe74c3c)
+                                                                else LocalContentColor.current
+                                                            ).value
+                                                        )
+                                                    }
+                                                }
+                                            } else null
+                                        )
+                                        Divider(modifier = Modifier.padding(top = 2.dp))
+                                    }
                                 }
                             }
 

@@ -3,8 +3,7 @@ package com.programmersbox.common
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import kotlinx.browser.document
+import androidx.compose.runtime.remember
 
 public actual fun getPlatformName(): String {
     return "JavaScript"
@@ -12,7 +11,9 @@ public actual fun getPlatformName(): String {
 
 @Composable
 public fun UIShow() {
-    App()
+    App(
+        driverFactory = remember { DriverFactory() },
+    )
 }
 
 @Composable

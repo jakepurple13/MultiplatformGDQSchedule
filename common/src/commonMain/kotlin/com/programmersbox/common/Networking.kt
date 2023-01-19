@@ -4,9 +4,14 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.squareup.sqldelight.runtime.coroutines.asFlow
+import com.squareup.sqldelight.runtime.coroutines.mapToList
 import io.ktor.client.*
 import io.ktor.client.request.*
-import io.ktor.client.statement.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -67,11 +72,13 @@ internal data class FullGameInfo(
             return startTime?.let { Instant.parse(it) }
         }
 
+    val id = "$game-$runner"
+
 }
 
-internal class GameViewModel {
+internal class GameViewModel(driverFactory: DriverFactory, scope: CoroutineScope) {
 
-    var gameInfo by mutableStateOf(emptyList<FullGameInfo>())
+    private var gameInfo by mutableStateOf(emptyList<FullGameInfo>())
 
     //val dateFormat = SimpleDateFormat("MMM d", Locale.getDefault())
 
@@ -87,8 +94,47 @@ internal class GameViewModel {
         }
     }
 
-    suspend fun init() {
-        gameInfo = Networking.getInfo()
+    private val database by lazy { createDatabase(driverFactory).remindersQueries }
+    val reminders by lazy {
+        database.getReminders()
+            .asFlow()
+            .mapToList()
+            .map { list ->
+                list
+                    .map { gameInfo ->
+                        FullGameInfo(
+                            game = gameInfo.game,
+                            runner = gameInfo.runner,
+                            startTime = Clock.System.now().toString(),//gameInfo.startTime,
+                            time = gameInfo.time,
+                            info = gameInfo.info
+                        )
+                    }
+                    .sortedBy { it.startTimeAsDate }
+            }
+    }
+
+    init {
+        scope.launch { gameInfo = Networking.getInfo() }
+    }
+
+    fun addReminder(gameInfo: FullGameInfo) {
+        database.addReminder(
+            id = gameInfo.id,
+            game = gameInfo.game,
+            runner = gameInfo.runner,
+            startTime = gameInfo.startTime,
+            time = gameInfo.time,
+            info = gameInfo.info
+        )
+    }
+
+    fun deleteReminder(gameInfo: FullGameInfo) {
+        database.deleteReminder(gameInfo.id)
+    }
+
+    fun updateReminder(gameInfo: FullGameInfo) {
+
     }
 
 }
