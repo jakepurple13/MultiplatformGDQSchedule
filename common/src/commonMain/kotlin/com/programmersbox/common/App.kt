@@ -27,7 +27,7 @@ internal fun App(
                     contentAlignment = Alignment.Center
                 ) {
                     val scope = rememberCoroutineScope()
-                    val vm = remember { GameViewModel(driverFactory, scope) }
+                    val vm = remember { GameViewModel(driverFactory, scope, appActions) }
                     GDQSchedule(
                         viewModel = vm
                     )

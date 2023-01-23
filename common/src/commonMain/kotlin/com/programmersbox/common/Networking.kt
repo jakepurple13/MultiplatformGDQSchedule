@@ -76,7 +76,11 @@ internal data class FullGameInfo(
 
 }
 
-internal class GameViewModel(driverFactory: DriverFactory, scope: CoroutineScope) {
+internal class GameViewModel(
+    driverFactory: DriverFactory,
+    scope: CoroutineScope,
+    private val appActions: AppActions
+) {
 
     private var gameInfo by mutableStateOf(emptyList<FullGameInfo>())
 
@@ -127,10 +131,12 @@ internal class GameViewModel(driverFactory: DriverFactory, scope: CoroutineScope
             time = gameInfo.time,
             info = gameInfo.info
         )
+        appActions.onSaveReminder(gameInfo)
     }
 
     fun deleteReminder(gameInfo: FullGameInfo) {
         database.deleteReminder(gameInfo.id)
+        appActions.onDeleteReminder(gameInfo)
     }
 
     fun updateReminder(gameInfo: FullGameInfo) {
