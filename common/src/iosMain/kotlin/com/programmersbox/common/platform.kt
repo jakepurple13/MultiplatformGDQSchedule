@@ -55,9 +55,7 @@ public fun toJson(item: GameInfo): String = Json.encodeToString(item)
 
 @ThreadLocal
 internal object InfoStuff {
-
     var setup: (String) -> List<GameInfo?> = { emptyList() }
-
 }
 
 @Composable
