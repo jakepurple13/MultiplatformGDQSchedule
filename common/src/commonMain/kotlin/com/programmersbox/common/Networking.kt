@@ -1,17 +1,17 @@
 package com.programmersbox.common
 
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
+import com.programmersbox.reminders.RemindersQueries
 import com.squareup.sqldelight.runtime.coroutines.asFlow
 import com.squareup.sqldelight.runtime.coroutines.mapToList
 import io.ktor.client.*
 import io.ktor.client.request.*
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -40,14 +40,14 @@ internal object Networking {
     }
 }
 
-internal sealed class GameInfo {
-    data class Game(
+public sealed class GameInfo {
+    public data class Game(
         val game: String,
         val runner: String,
         val startTime: String
     ) : GameInfo()
 
-    data class Info(
+    public data class Info(
         val time: String,
         val info: String
     ) : GameInfo()
@@ -98,8 +98,10 @@ internal class GameViewModel(
         }
     }
 
-    private val database by lazy { createDatabase(driverFactory).remindersQueries }
-    val reminders by lazy {
+    private lateinit var database: RemindersQueries
+
+    //private val database by lazy { createDatabase(driverFactory).remindersQueries }
+    /*val reminders by lazy {
         database.getReminders()
             .asFlow()
             .mapToList()
@@ -116,10 +118,37 @@ internal class GameViewModel(
                     }
                     .sortedBy { it.startTimeAsDate }
             }
-    }
+    }*/
+    val reminders = mutableStateListOf<FullGameInfo>()
 
     init {
         scope.launch { gameInfo = Networking.getInfo() }
+
+        scope.launch {
+            database = async { createDatabase(driverFactory).remindersQueries }.await()
+
+            database.getReminders()
+                .asFlow()
+                .mapToList()
+                .map { list ->
+                    list
+                        .map { gameInfo ->
+                            FullGameInfo(
+                                game = gameInfo.game,
+                                runner = gameInfo.runner,
+                                startTime = gameInfo.startTime,
+                                time = gameInfo.time,
+                                info = gameInfo.info
+                            )
+                        }
+                        .sortedBy { it.startTimeAsDate }
+                }
+                .onEach {
+                    reminders.clear()
+                    reminders.addAll(it)
+                }
+                .launchIn(scope)
+        }
     }
 
     fun addReminder(gameInfo: FullGameInfo) {

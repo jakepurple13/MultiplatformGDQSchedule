@@ -70,6 +70,7 @@ kotlin {
                 api("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
                 api("com.squareup.sqldelight:runtime:$sqldelight")
                 api("com.squareup.sqldelight:coroutines-extensions:$sqldelight")
+                api("io.github.aakira:napier:2.6.1")
             }
         }
 

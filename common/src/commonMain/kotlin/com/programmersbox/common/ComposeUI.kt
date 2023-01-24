@@ -40,7 +40,7 @@ internal fun GDQSchedule(
     val actions = LocalAppActions.current
     val currentTime by currentTime()
     val scope = rememberCoroutineScope()
-    val savedReminders by viewModel.reminders.collectAsState(emptyList())
+    val savedReminders = viewModel.reminders//.collectAsState(emptyList())
 
     LaunchedEffect(Unit) {
         flow<Instant> {
