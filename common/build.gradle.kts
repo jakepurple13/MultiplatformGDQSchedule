@@ -33,11 +33,26 @@ kotlin {
         podfile = project.file("../iosApp/Podfile")
         framework {
             baseName = "common"
-            isStatic = true
+            isStatic = false
+            embedBitcode(org.jetbrains.kotlin.gradle.plugin.mpp.Framework.BitcodeEmbeddingMode.DISABLE)
+            export("io.github.softartdev:sqlcipher-ktn-pod:1.3")
         }
         extraSpecAttributes["resources"] = "['src/commonMain/resources/**', 'src/iosMain/resources/**']"
         useLibraries()
     }
+
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+        binaries.all {
+            freeCompilerArgs += listOf(
+                "-linker-option", "-framework", "-linker-option", "Metal",
+                "-linker-option", "-framework", "-linker-option", "CoreText",
+                "-linker-option", "-framework", "-linker-option", "CoreGraphics",
+                "-Xdisable-phases=VerifyBitcode"
+            )
+            linkerOpts += "-lsqlite3"
+        }
+    }
+
     sourceSets {
         val sqldelight = "1.5.4"
         val ktorVersion = "2.2.2"
@@ -109,6 +124,7 @@ kotlin {
             dependencies {
                 api("io.ktor:ktor-client-darwin:$ktorVersion")
                 api("com.squareup.sqldelight:native-driver:$sqldelight")
+                api("io.github.softartdev:sqlcipher-ktn-pod:1.3")
             }
             iosX64Main.dependsOn(this)
             iosArm64Main.dependsOn(this)
@@ -136,4 +152,5 @@ sqldelight {
     database("GDQReminderDatabase") {
         packageName = "com.programmersbox.reminders"
     }
+    linkSqlite = true
 }
